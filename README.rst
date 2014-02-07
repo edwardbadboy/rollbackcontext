@@ -73,7 +73,7 @@ You can refer to unit test code to find many more examples.
 Here are some examples from simplified production code::
 
  def vm_lifecycle(...):
-     ''' The task is to create the VM, perform same tests and
+     ''' The task is to create the VM, perform some tests and
      destroy the VM and related resources. '''
      with RollbackContext() as rollback:
          templates_create('testTemplate', ...)
