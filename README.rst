@@ -11,7 +11,7 @@ Sometimes we need to perform a series of operations::
 
  op[0], op[1], ... op[N]
 
-These operations may allocate files, locks, connections, and ``op[K]`` may depend on result of ``op[K-1]``. Each operation creates a context. When the operations are done, we want to destroy those contexts. Sometimes it's not feasible to use standard Python Context Manager Protocol, because the number of the resource involved in a transaction can be a variable. There is no way to use a variable number of the "with" statement, and ``contextlib.nested`` is being deprecated. Sometimes it's just too verbose to create standard Python Context Manager for each context.
+These operations may allocate files, locks, connections, and ``op[K]`` may depend on result of ``op[K-1]``. Each operation creates a context. When the operations are done, we want to destroy those contexts. Sometimes it's not feasible to use standard Python Context Manager Protocol, because the number of the resource involved in a transaction can be a variable. There is no way to use a variable number of the ``with`` statement, and ``contextlib.nested`` is being deprecated. Sometimes it's just too verbose to create standard Python Context Manager for each context.
 
 This library implements a concise Context Manager and proposes an idiom for rollback.
 
@@ -21,7 +21,7 @@ It allows the programme register an undo function after each successful operatio
 
  op[0], op[1], ... op[N], DONE, -op[N], ... , -op[1], -op[0]
 
-If there is an exception from ``op[X]``, it aborts the execution of the op series and starts to run undos. If there is an exception from the undos, it ignore the exception temporary and continues to run the rest of the undos. At last, it re-raise the earliest exception it sees. This is because the latter exceptions may be caused by an earlier exception, so the most helpful exception for diagnosing the problem is the earliest one. Meanwhile, it should execute all the undos to destroy all the contexts as much as possible.
+If there is an exception from ``op[X]``, it aborts the execution of the op series and starts to run undos. If there is an exception from the undos, it ignores the exception temporary and continues to run the rest of the undos. At last, it re-raises the earliest exception it sees. This is because latter exceptions may be caused by an earlier exception, so the most helpful exception for diagnosing the problem is the earliest one. Meanwhile, it should execute all the undos to destroy all the contexts as much as possible.
 
 How to Use
 ==========
