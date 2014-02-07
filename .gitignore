@@ -1,0 +1,15 @@
+# Compiled Python binaries
+*.pyc
+*.pyo
+
+# setuptools distribution and build folder
+dist/
+build/
+
+# Generated egg metadata information
+*.egg-info
+*.egg
+
+# Temp files of various editors
+.*.swp
+*.*~
