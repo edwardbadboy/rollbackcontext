@@ -22,7 +22,7 @@ def readme():
 
 setup(
     name='rollbackcontext',
-    version='0.1-1',
+    version='0.1-2',
     description='A context manager to do rollbacks automatically',
     url='https://github.com/edwardbadboy/rollbackcontext',
     long_description=readme(),
