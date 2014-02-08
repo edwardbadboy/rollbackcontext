@@ -110,11 +110,11 @@ Yet another one::
      user = None
      with RollbackContext() as rollback:
          conn = libvirt.open('qemu:///system')
-         rollback.prependDefer(conn.close)
+         rollback.push(conn.close)
          dom = conn.defineXML('...')
-         rollback.prependDefer(dom.undefine)
+         rollback.push(dom.undefine)
          dom.create()
-         rollback.prependDefer(dom.destroy)
+         rollback.push(dom.destroy)
          with open('/var/run/libvirt/qemu/%s.pid' % self.vm_name) as f:
              pidStr = f.read()
          p = psutil.Process(int(pidStr))
