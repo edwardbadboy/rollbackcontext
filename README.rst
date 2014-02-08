@@ -31,13 +31,13 @@ How to Use
 
 ::
 
- with RollbackContext as rollback:
+ with RollbackContext() as rollback:
 
 3. Write code for the operations, after each operation success, register a reverse operation by calling the ``push`` method.
 
 ::
 
- with RollbackContext as rollback:
+ with RollbackContext() as rollback:
      op0
      rollbcak.push(op0Reverse)
      op1
@@ -130,7 +130,7 @@ Cancel All Rollbacks
 --------------------
 Most of the time we need to run all the undos, but sometimes we want to cancel the undos if all operations are successful. In this case, call the ``commitAll`` method to cancel all the undos as following::
 
- with RollbackContext as rollback:
+ with RollbackContext() as rollback:
      print 'Op 0'
      rollback.push(op0Reverse)
      print 'Op 1'
@@ -143,7 +143,7 @@ Sometimes we want to cancel a particular undo if all operations are successful. 
 
 ::
 
- with RollbackContext as rollback:
+ with RollbackContext() as rollback:
     print 'Op 0'
     rollback.push(op0Reverse).setAutoCommit()
     print 'Op 1'
@@ -157,6 +157,9 @@ Normally the ``push`` method adds the undo function to the top of the undo stack
 
 ::
 
+ from sys import stdout
+ 
+ 
  with RollbackContext() as rollback:
      rollback.pushBottom(lambda: stdout.write("0\n"))
      rollback.pushBottom(lambda: stdout.write("1\n"))
@@ -245,7 +248,7 @@ Unfortunately, C programmers can not enjoy the delight from our RollbackContext,
 If this function was to be written in Python (of course it never would), we could re-structure it as the following::
 
  def init_nfs_fs():
-     with RollbackContext as rollback:
+     with RollbackContext() as rollback:
          op0
          rollback.push(op0Reverse)
          op1
