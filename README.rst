@@ -17,11 +17,11 @@ This library implements a concise Context Manager and proposes an idiom for roll
 
 How It Works
 ============
-It allows the programme register an undo function after each successful operation. It manages the undo functions as a stack. Each new undo function is push to the top of the stack. When the the operations are successful and execution flow leaves the context manager, it tries to pop the undo functions and run them. In all, it runs the following operation series::
+RollbackContext is a context manager to be used in a ``with`` statement. Once instantiated, it creates a undo stack. It allows the programme to register undo function after each successful operation. Each new undo function is push to the top of the stack. When the the operations are successful and execution flow leaves the ``with`` statement, it tries to pop the undo functions and run them. In all, it runs the following operation series::
 
  op[0], op[1], ... op[N], DONE, -op[N], ... , -op[1], -op[0]
 
-If there is an exception from ``op[X]``, it aborts the execution of the op series and starts to run undos. If there is an exception from the undos, it ignores the exception temporary and continues to run the rest of the undos. At last, it re-raises the earliest exception it sees. This is because latter exceptions may be caused by an earlier exception, so the most helpful exception for diagnosing the problem is the earliest one. Meanwhile, it should execute all the undos to destroy all the contexts as much as possible.
+If there is an exception from ``op[i]``, it aborts the execution of the op series and starts to run undos registered so far. If there is an exception from the undos, it ignores the exception temporary and continues to run the rest of the undos. At last, it re-raises the earliest exception it sees. This is because latter exceptions may be caused by an earlier exception, so the most helpful exception for diagnosing the problem is the earliest one. Meanwhile, it should execute all the undos to destroy all the contexts as much as possible.
 
 How to Use
 ==========
@@ -38,12 +38,12 @@ How to Use
 ::
 
  with RollbackContext() as rollback:
-     op0
-     rollbcak.push(op0Reverse)
-     op1
-     rollbcak.push(op1Reverse)
+     op0()
+     rollbcak.push(op0Reverse)  # op0Reverse is a callable.
+     op1(args, ...)
+     rollbcak.push(op1Reverse, argsForOp1Reverse, ...)
 
-The ``push`` method accepts callable and the arguments that would be passed to the callable.
+The ``push`` method accepts callable and the optional arguments that would be passed to the callable. In the above case, RollbackContext runs ``op0()``, then ``op1(args, ...)``, then ``op1Reverse(argsForOp1Reverse, ...)``, and at last ``op0Reverse()``.
 
 Examples
 ========
@@ -96,11 +96,15 @@ Another one::
          rollback.push(os.rmdir, mnt_point)
  
          mount_cmd = ["mount", ..., mnt_point]
-         run_command(mount_cmd, 30)
+         try:
+             run_command(mount_cmd, 30)  # Wait for 30 seconds
+         except TimeoutError:
+             return False
          umount_cmd = ["umount", "-f", mnt_point]
          rollback.push(run_command, umount_cmd)
  
          # Do whatever with the mounted filesystem
+     return True
 
 Yet another one::
 
@@ -137,6 +141,8 @@ Most of the time we need to run all the undos, but sometimes we want to cancel t
      rollback.push(op1Reverse)
      rollback.commitAll()
 
+If the ``with`` statement ends successfully, ``commitAll()`` cancels all undo, so that the contexts created in the ``with`` statement will be left untouched for future use. If there is exception from the ``with`` statement, ``commitAll()`` will not be run, so it still runs all the undo functions. Sounds like "start transaction", "commit transaction" and "automatic rollback" in a database stored procedure, isn't it?
+
 Cancel a Particular Rollback
 ----------------------------
 Sometimes we want to cancel a particular undo if all operations are successful. In this case, call the ``setAutoCommit`` method of the object returned from the ``push`` method.
@@ -149,7 +155,7 @@ Sometimes we want to cancel a particular undo if all operations are successful. 
     print 'Op 1'
     rollback.push(op1Reverse)
 
-If any exception would be raised within the ``with`` statement, ``op1Reverse`` and ``op2Reverse`` would be run. If the ``with`` statement was successful, only ``op1Reverse`` would be run.
+If any exception would be raised within the ``with`` statement, ``op1Reverse()`` and ``op2Reverse()`` would be run. If the ``with`` statement was successful, only ``op1Reverse()`` would be run.
 
 Register Undo Function to the Bottom of the Stack
 -------------------------------------------------
@@ -245,17 +251,41 @@ Unfortunately, C programmers can not enjoy the delight from our RollbackContext,
  	return err;
  }
 
-If this function was to be written in Python (of course it never would), we could re-structure it as the following::
+If this function was to be written in Python (of course it never would), without RollbackContext, you have to write as the following::
+
+ def init_nfs_fs():
+     with op0() as context0:  # Suppose you wrap opX into context managers
+         with op1() as context1:
+             # ...
+             for c in [contextN, ... , context1, context0]:
+                c.cancelDestroy()
+
+Or the following::
+
+ def init_nfs_fs():
+    try:
+        op0()
+        try:
+            op1()
+            # ...
+        except Exception:
+            op1Reverse()
+            raise
+    except Exception:
+        op0Reverse()
+        raise
+
+With the help of RollbackContext, we can re-structure it as the following::
 
  def init_nfs_fs():
      with RollbackContext() as rollback:
-         op0
+         op0()  # Suppose op0() raises exception when it fails
          rollback.push(op0Reverse)
-         op1
+         op1()
          rollback.push(op1Reverse)
          # ...
          rollback.commitAll()
 
-It would be more cleaner. Whenever you find yourself dealing with similar case in Python, nesting ``try...finally`` blocks, you might want to have a go on RollbackContext.
+It's cleaner. Whenever you find yourself dealing with similar case in Python, nesting ``try...except...finally`` or ``with`` blocks, you might want to have a try on RollbackContext.
 
-For more anti-pattern examples, you can just ``git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git``, and ``git grep 'goto out5'``, ``git grep 'goto out6'`` and more. Currently the worst case is ``bfin_lq035q1_probe`` function in ``drivers/video/bfin-lq035q1-fb.c``, it ``goto out10``.
+For more anti-pattern examples, you can just ``git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git``, and ``git grep 'goto out5'``, ``git grep 'goto out6'`` and more. Currently the worst case is ``bfin_lq035q1_probe`` function in ``drivers/video/bfin-lq035q1-fb.c``, it ``goto out10``. Think of when a developer wants to add a new operation and cleanup code into the existing operation series, he has to manually change all the ``X`` in ``goto outX`` and ``outX:``. 有多痛苦，你们感受一下 ``;-)``.
