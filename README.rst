@@ -61,9 +61,9 @@ A most simple example may be the following::
      print "Op 2"
      rollback.push(lambda: stdout.write("Undo 2\n"))
  # Prints the following
- # Operation 0
- # Operation 1
- # Operation 2
+ # Op 0
+ # Op 1
+ # Op 2
  # Undo 2
  # Undo 1
  # Undo 0
